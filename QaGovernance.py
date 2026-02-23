@@ -206,7 +206,7 @@ if ciclo_ativo != "Nenhum":
         img = st.file_uploader("Upload de Evidência", type=['png','jpg','jpeg'])
         if st.button("Vincular ao Supabase") and img:
             file_path = f"{exec_id}/{target}_{img.name}"
-            supabase.storage.from_("evidencias").upload(file_path, img.getbuffer(), {"upsert": "true"})
+            supabase.storage.from_("evidencias").upload(file_path, img.getvalue(), {"upsert": "true"})
             url = supabase.storage.from_("evidencias").get_public_url(file_path)
             supabase.table("evidencias").insert({"exec_id": exec_id, "test_id": target, "caminho": url, "data": datetime.now().strftime("%Y-%m-%d")}).execute()
             st.success("Evidência salva no Storage!")
