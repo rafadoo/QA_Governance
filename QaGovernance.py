@@ -47,7 +47,7 @@ class QAReport(FPDF):
     def header(self):
         self.set_font('helvetica', 'B', 10)
         self.set_text_color(100, 100, 100)
-        self.cell(0, 10, 'SISTEMA DE GOVERNANCA DE QA - RELATORIO SUPABASE', new_x=XPos.LMARGIN, new_y=YPos.NEXT, align='L')
+        self.cell(0, 10, 'SISTEMA DE GOVERNANCA DE QA - RELATORIO DE EXECUÇÃO', new_x=XPos.LMARGIN, new_y=YPos.NEXT, align='L')
         self.line(15, 18, 195, 18)
         self.ln(5)
 
@@ -280,7 +280,7 @@ if ciclo_ativo != "Nenhum":
                     "descricao": r.get('Descricao',''), "tipo": r.get('Tipo',''), 
                     "prioridade": r.get('Prioridade',''), "responsavel": r.get('Responsavel',''), "status": r.get('Status','Pendente')
                 }).execute()
-            st.success("Sincronizado no Supabase!")
+            st.success("Sincronizado!")
 
     with tabs[2]:
         if st.button("➕ Novo Caso de Teste"):
