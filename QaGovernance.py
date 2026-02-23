@@ -78,30 +78,54 @@ def gerar_pdf_completo(ciclo_nome, df_testes, df_crits, exec_id, img_pie_path, i
         pdf.add_page()
         pdf.section_header("ANALISES DE PERFORMANCE")
         pdf.image(img_pie_path, x=55, y=pdf.get_y() + 5, w=100)
-        pdf.set_y(pdf.get_y() + 105)
+        pdf.set_y(pdf.get_y() + 105) # Pula o espaço do gráfico de pizza
         pdf.image(img_bar_path, x=25, y=pdf.get_y() + 5, w=160)
 
-    # Critérios e Testes (Logica de download de evidências via URL)
+    # Detalhamento
     pdf.add_page()
-    pdf.section_header("DETALHAMENTO")
+    pdf.section_header("DETALHAMENTO DOS TESTES")
     
-    # Buscar evidências do Supabase
+    # Buscar todas as evidências de uma vez para evitar múltiplas chamadas dentro do loop
     evs_data = supabase.table("evidencias").select("caminho, test_id").eq("exec_id", exec_id).execute().data
     
     for _, r in df_testes.iterrows():
+        # Verifica se precisa de nova página antes de imprimir o bloco do teste
+        if pdf.get_y() > 250:
+            pdf.add_page()
+            
         pdf.set_font('helvetica', 'B', 10)
+        pdf.set_fill_color(240, 240, 240)
+        # Título do Teste
         pdf.cell(0, 8, f" {r['ID']} | {r['Titulo']}", fill=True, border='B', new_x=XPos.LMARGIN, new_y=YPos.NEXT)
         
-        # Download temporário para o PDF
+        # Status e Funcionalidade
+        pdf.set_font('helvetica', '', 9)
+        pdf.cell(0, 6, f"Módulo: {r['Funcionalidade']} | Status: {r['Status']}", new_x=XPos.LMARGIN, new_y=YPos.NEXT)
+        
+        # Observações (se houver)
+        if r['Observacao']:
+            pdf.multi_cell(0, 6, f"Obs: {r['Observacao']}", new_x=XPos.LMARGIN, new_y=YPos.NEXT)
+        
+        # Evidências
         current_evs = [e['caminho'] for e in evs_data if e['test_id'] == r['ID']]
-        for url in current_evs:
-            try:
-                img_content = requests.get(url).content
-                with tempfile.NamedTemporaryFile(delete=False, suffix=".png") as tmp:
-                    tmp.write(img_content)
-                    pdf.image(tmp.name, w=90)
-                os.unlink(tmp.name)
-            except: pass
+        if current_evs:
+            pdf.ln(2)
+            for url in current_evs:
+                try:
+                    img_content = requests.get(url, timeout=10).content
+                    with tempfile.NamedTemporaryFile(delete=False, suffix=".png") as tmp:
+                        tmp.write(img_content)
+                        tmp_path = tmp.name
+                    
+                    # Tenta inserir a imagem, se falhar não quebra o PDF
+                    pdf.image(tmp_path, w=100)
+                    pdf.ln(5)
+                    os.unlink(tmp_path)
+                except Exception as e:
+                    pdf.set_font('helvetica', 'I', 8)
+                    pdf.cell(0, 5, f"[Erro ao carregar imagem: {str(e)}]", new_x=XPos.LMARGIN, new_y=YPos.NEXT)
+        
+        pdf.ln(5) # Espaço entre um caso de teste e outro
             
     return bytes(pdf.output())
 
