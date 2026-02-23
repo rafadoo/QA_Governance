@@ -123,53 +123,69 @@ def gerar_pdf_completo(ciclo_nome, df_testes, df_crits, exec_id, img_pie_path, i
     # --- DETALHAMENTO DOS TESTES ---
     pdf.add_page()
     pdf.section_header("DETALHAMENTO DA EXECUÇÃO")
+
+    largura_util = pdf.w - pdf.l_margin - pdf.r_margin
     
     evs_data = supabase.table("evidencias").select("caminho, test_id").eq("exec_id", exec_id).execute().data
     
     for _, r in df_testes.iterrows():
-        if pdf.get_y() > 230: pdf.add_page()
+        # Verificação de quebra de página preventiva (se restar menos de 60mm)
+        if pdf.get_y() > 230: 
+            pdf.add_page()
             
-        # Cabeçalho do Bloco de Teste
+        # 1. Cabeçalho do Bloco de Teste
         pdf.set_font('helvetica', 'B', 11)
         pdf.set_fill_color(44, 62, 80)
         pdf.set_text_color(255, 255, 255)
-        pdf.cell(0, 10, f" {r['ID']} | {r['Titulo']}", fill=True, new_x=XPos.LMARGIN, new_y=YPos.NEXT)
+        pdf.cell(largura_util, 10, f" {r['ID']} | {r['Titulo']}", fill=True, new_x=XPos.LMARGIN, new_y=YPos.NEXT)
         
-        # Sub-informações com Cores
+        # 2. Linha de Status e Módulo (Com Cores)
         pdf.set_text_color(0, 0, 0)
         pdf.set_font('helvetica', 'B', 9)
-        pdf.cell(40, 8, f" MÓDULO: {r['Funcionalidade']}", border='B')
+        pdf.cell( largura_util * 0.5, 8, f" MÓDULO: {r['Funcionalidade']}", border='B')
         
-        # Cor condicional para o Status
-        status_color = (75, 76, 106) # Default Pendente
+        # Define a cor do texto do Status
+        status_color = (75, 76, 106) # Cor padrão (Pendente)
         if r['Status'] == "OK": status_color = (30, 130, 76) # Verde
-        elif r['Status'] == "Falha": status_color = (120, 0, 150) # Roxo/Vermelho
+        elif r['Status'] == "Falha": status_color = (120, 0, 150) # Roxo
         
         pdf.set_text_color(*status_color)
-        pdf.cell(0, 8, f" STATUS: {r['Status']}", border='B', new_x=XPos.LMARGIN, new_y=YPos.NEXT)
+        pdf.cell(largura_util * 0.5, 8, f" STATUS: {r['Status']}", border='B', new_x=XPos.LMARGIN, new_y=YPos.NEXT)
         
-        # Passos e Esperado
+        # 3. Passos (Reseta cursor para a margem esquerda)
         pdf.set_text_color(0, 0, 0)
+        pdf.ln(2)
         pdf.set_font('helvetica', 'B', 9)
-        pdf.cell(0, 7, "Passos:", new_x=XPos.LMARGIN, new_y=YPos.NEXT)
-        pdf.set_font('helvetica', '', 9)
-        pdf.multi_cell(0, 5, r['Passos'] if r['Passos'] else "N/A")
+        pdf.set_x(pdf.l_margin)
+        pdf.cell(largura_util, 7, "Passos:", new_x=XPos.LMARGIN, new_y=YPos.NEXT)
         
-        pdf.set_font('helvetica', 'B', 9)
-        pdf.cell(0, 7, "Resultado Esperado:", new_x=XPos.LMARGIN, new_y=YPos.NEXT)
         pdf.set_font('helvetica', '', 9)
-        pdf.multi_cell(0, 5, r['Esperado'] if r['Esperado'] else "N/A")
+        texto_passos = str(r['Passos']) if r['Passos'] and str(r['Passos']) != 'None' else "N/A"
+        pdf.multi_cell(largura_util, 5, texto_passos, new_x=XPos.LMARGIN, new_y=YPos.NEXT)
+        
+        # 4. Resultado Esperado
+        pdf.ln(1)
+        pdf.set_font('helvetica', 'B', 9)
+        pdf.set_x(pdf.l_margin)
+        pdf.cell(largura_util, 7, "Resultado Esperado:", new_x=XPos.LMARGIN, new_y=YPos.NEXT)
+        
+        pdf.set_font('helvetica', '', 9)
+        texto_esperado = str(r['Esperado']) if r['Esperado'] and str(r['Esperado']) != 'None' else "N/A"
+        pdf.multi_cell(largura_util, 5, texto_esperado, new_x=XPos.LMARGIN, new_y=YPos.NEXT)
 
-        if r['Observacao']:
+        # 5. Observações (Se existirem)
+        if r['Observacao'] and str(r['Observacao']) != 'None':
+            pdf.ln(2)
             pdf.set_font('helvetica', 'I', 9)
-            pdf.set_text_color(150, 0, 0)
-            pdf.multi_cell(0, 5, f"Obs: {r['Observacao']}")
+            pdf.set_text_color(150, 0, 0) # Texto em tom avermelhado para avisos
+            pdf.set_x(pdf.l_margin)
+            pdf.multi_cell(largura_util, 5, f"Obs: {r['Observacao']}", new_x=XPos.LMARGIN, new_y=YPos.NEXT)
             pdf.set_text_color(0, 0, 0)
 
-        # Evidências
+        # 6. Evidências (Imagens do Supabase Storage)
         current_evs = [e['caminho'] for e in evs_data if e['test_id'] == r['ID']]
         if current_evs:
-            pdf.ln(2)
+            pdf.ln(3)
             for url in current_evs:
                 try:
                     img_content = requests.get(url, timeout=10).content
@@ -177,14 +193,16 @@ def gerar_pdf_completo(ciclo_nome, df_testes, df_crits, exec_id, img_pie_path, i
                         tmp.write(img_content)
                         tmp_path = tmp.name
                     
-                    # Centraliza a imagem
-                    pdf.image(tmp_path, x=pdf.get_x() + 25, w=140)
+                    # Centralização lógica da imagem (Página tem 210mm, margens 15mm cada)
+                    # Imagem com 140mm de largura
+                    pdf.image(tmp_path, x=35, w=140) 
                     pdf.ln(2)
                     os.unlink(tmp_path)
                 except:
-                    pdf.cell(0, 5, "[Evidência não pôde ser carregada]", new_x=XPos.LMARGIN, new_y=YPos.NEXT)
+                    pdf.set_font('helvetica', 'I', 8)
+                    pdf.cell(largura_util, 5, " [Evidência anexada, mas não pôde ser carregada no PDF] ", new_x=XPos.LMARGIN, new_y=YPos.NEXT)
         
-        pdf.ln(10) # Espaço generoso entre testes
+        pdf.ln(10) # Espaçamento final entre blocos de teste
             
     return bytes(pdf.output())
 
