@@ -204,7 +204,7 @@ if ciclo_ativo != "Nenhum":
         st.subheader("Anexos na Nuvem")
         target = st.selectbox("ID do Teste", df_t['ID'].tolist() if not df_t.empty else [])
         img = st.file_uploader("Upload de Evidência", type=['png','jpg','jpeg'])
-        if st.button("Vincular ao Supabase") and img:
+        if st.button("Vincular ao Caso de Teste") and img:
             file_path = f"{exec_id}/{target}_{img.name}"
             supabase.storage.from_("evidencias").upload(file_path, img.getvalue(), {"upsert": "true"})
             url = supabase.storage.from_("evidencias").get_public_url(file_path)
