@@ -63,49 +63,109 @@ def gerar_pdf_completo(ciclo_nome, df_testes, df_crits, exec_id, img_pie_path, i
     pdf = QAReport()
     pdf.set_margins(15, 15, 15)
     pdf.set_auto_page_break(auto=True, margin=20)
+    
+    # --- PÁGINA 1: CAPA ---
     pdf.add_page()
+    pdf.set_y(80)
+    pdf.set_font('helvetica', 'B', 28)
+    pdf.set_text_color(44, 62, 80)
+    pdf.cell(0, 20, "RELATÓRIO DE EXECUÇÃO DE QA", new_x=XPos.LMARGIN, new_y=YPos.NEXT, align='C')
     
-    # Capa
-    pdf.set_y(60)
-    pdf.set_font('helvetica', 'B', 26)
-    pdf.cell(0, 20, "RELATORIO DE EXECUCAO", new_x=XPos.LMARGIN, new_y=YPos.NEXT, align='C')
-    pdf.set_font('helvetica', 'B', 18)
-    pdf.set_text_color(127, 140, 141)
-    pdf.cell(0, 10, ciclo_nome.upper(), new_x=XPos.LMARGIN, new_y=YPos.NEXT, align='C')
+    pdf.set_font('helvetica', 'B', 16)
+    pdf.set_text_color(100, 100, 100)
+    pdf.cell(0, 10, f"PROJETO: {ciclo_nome.upper()}", new_x=XPos.LMARGIN, new_y=YPos.NEXT, align='C')
     
+    pdf.set_y(250)
+    pdf.set_font('helvetica', 'I', 10)
+    pdf.cell(0, 10, f"Gerado em: {datetime.now().strftime('%d/%m/%Y %H:%M')}", align='C')
+
+    # --- PÁGINA 2: DASHBOARD & RESUMO ---
+    pdf.add_page()
+    pdf.section_header("SUMÁRIO EXECUTIVO")
+    
+    # Tabela de Resumo de Status
+    status_counts = df_testes['Status'].value_counts()
+    pdf.set_font('helvetica', 'B', 10)
+    pdf.set_fill_color(230, 230, 230)
+    pdf.cell(90, 8, "Status", border=1, fill=True)
+    pdf.cell(90, 8, "Quantidade", border=1, fill=True, new_x=XPos.LMARGIN, new_y=YPos.NEXT)
+    
+    pdf.set_font('helvetica', '', 10)
+    for status, count in status_counts.items():
+        pdf.cell(90, 8, f" {status}", border=1)
+        pdf.cell(90, 8, f" {count}", border=1, new_x=XPos.LMARGIN, new_y=YPos.NEXT)
+
     # Gráficos
     if img_pie_path and img_bar_path:
-        pdf.add_page()
-        pdf.section_header("ANALISES DE PERFORMANCE")
-        pdf.image(img_pie_path, x=55, y=pdf.get_y() + 5, w=100)
-        pdf.set_y(pdf.get_y() + 105) # Pula o espaço do gráfico de pizza
-        pdf.image(img_bar_path, x=25, y=pdf.get_y() + 5, w=160)
+        pdf.ln(10)
+        pdf.image(img_pie_path, x=55, w=100)
+        pdf.ln(5)
+        pdf.image(img_bar_path, x=20, w=170)
 
-    # Detalhamento
+    # --- PÁGINA 3: CRITÉRIOS DE ACEITE ---
+    if not df_crits.empty:
+        pdf.add_page()
+        pdf.section_header("CRITÉRIOS DE ACEITE")
+        pdf.set_font('helvetica', 'B', 9)
+        pdf.set_fill_color(200, 205, 210)
+        pdf.cell(25, 8, "ID", border=1, fill=True)
+        pdf.cell(100, 8, "Descrição", border=1, fill=True)
+        pdf.cell(30, 8, "Prioridade", border=1, fill=True)
+        pdf.cell(25, 8, "Status", border=1, fill=True, new_x=XPos.LMARGIN, new_y=YPos.NEXT)
+        
+        pdf.set_font('helvetica', '', 8)
+        for _, c in df_crits.iterrows():
+            pdf.cell(25, 7, f" {c['ID']}", border=1)
+            pdf.cell(100, 7, f" {str(c['Descricao'])[:60]}...", border=1)
+            pdf.cell(30, 7, f" {c['Prioridade']}", border=1)
+            pdf.cell(25, 7, f" {c['Status']}", border=1, new_x=XPos.LMARGIN, new_y=YPos.NEXT)
+
+    # --- DETALHAMENTO DOS TESTES ---
     pdf.add_page()
-    pdf.section_header("DETALHAMENTO DOS TESTES")
+    pdf.section_header("DETALHAMENTO DA EXECUÇÃO")
     
-    # Buscar todas as evidências de uma vez para evitar múltiplas chamadas dentro do loop
     evs_data = supabase.table("evidencias").select("caminho, test_id").eq("exec_id", exec_id).execute().data
     
     for _, r in df_testes.iterrows():
-        # Verifica se precisa de nova página antes de imprimir o bloco do teste
-        if pdf.get_y() > 250:
-            pdf.add_page()
+        if pdf.get_y() > 230: pdf.add_page()
             
-        pdf.set_font('helvetica', 'B', 10)
-        pdf.set_fill_color(240, 240, 240)
-        # Título do Teste
-        pdf.cell(0, 8, f" {r['ID']} | {r['Titulo']}", fill=True, border='B', new_x=XPos.LMARGIN, new_y=YPos.NEXT)
+        # Cabeçalho do Bloco de Teste
+        pdf.set_font('helvetica', 'B', 11)
+        pdf.set_fill_color(44, 62, 80)
+        pdf.set_text_color(255, 255, 255)
+        pdf.cell(0, 10, f" {r['ID']} | {r['Titulo']}", fill=True, new_x=XPos.LMARGIN, new_y=YPos.NEXT)
         
-        # Status e Funcionalidade
+        # Sub-informações com Cores
+        pdf.set_text_color(0, 0, 0)
+        pdf.set_font('helvetica', 'B', 9)
+        pdf.cell(40, 8, f" MÓDULO: {r['Funcionalidade']}", border='B')
+        
+        # Cor condicional para o Status
+        status_color = (75, 76, 106) # Default Pendente
+        if r['Status'] == "OK": status_color = (30, 130, 76) # Verde
+        elif r['Status'] == "Falha": status_color = (120, 0, 150) # Roxo/Vermelho
+        
+        pdf.set_text_color(*status_color)
+        pdf.cell(0, 8, f" STATUS: {r['Status']}", border='B', new_x=XPos.LMARGIN, new_y=YPos.NEXT)
+        
+        # Passos e Esperado
+        pdf.set_text_color(0, 0, 0)
+        pdf.set_font('helvetica', 'B', 9)
+        pdf.cell(0, 7, "Passos:", new_x=XPos.LMARGIN, new_y=YPos.NEXT)
         pdf.set_font('helvetica', '', 9)
-        pdf.cell(0, 6, f"Módulo: {r['Funcionalidade']} | Status: {r['Status']}", new_x=XPos.LMARGIN, new_y=YPos.NEXT)
+        pdf.multi_cell(0, 5, r['Passos'] if r['Passos'] else "N/A")
         
-        # Observações (se houver)
+        pdf.set_font('helvetica', 'B', 9)
+        pdf.cell(0, 7, "Resultado Esperado:", new_x=XPos.LMARGIN, new_y=YPos.NEXT)
+        pdf.set_font('helvetica', '', 9)
+        pdf.multi_cell(0, 5, r['Esperado'] if r['Esperado'] else "N/A")
+
         if r['Observacao']:
-            pdf.multi_cell(0, 6, f"Obs: {r['Observacao']}", new_x=XPos.LMARGIN, new_y=YPos.NEXT)
-        
+            pdf.set_font('helvetica', 'I', 9)
+            pdf.set_text_color(150, 0, 0)
+            pdf.multi_cell(0, 5, f"Obs: {r['Observacao']}")
+            pdf.set_text_color(0, 0, 0)
+
         # Evidências
         current_evs = [e['caminho'] for e in evs_data if e['test_id'] == r['ID']]
         if current_evs:
@@ -117,15 +177,14 @@ def gerar_pdf_completo(ciclo_nome, df_testes, df_crits, exec_id, img_pie_path, i
                         tmp.write(img_content)
                         tmp_path = tmp.name
                     
-                    # Tenta inserir a imagem, se falhar não quebra o PDF
-                    pdf.image(tmp_path, w=100)
-                    pdf.ln(5)
+                    # Centraliza a imagem
+                    pdf.image(tmp_path, x=pdf.get_x() + 25, w=140)
+                    pdf.ln(2)
                     os.unlink(tmp_path)
-                except Exception as e:
-                    pdf.set_font('helvetica', 'I', 8)
-                    pdf.cell(0, 5, f"[Erro ao carregar imagem: {str(e)}]", new_x=XPos.LMARGIN, new_y=YPos.NEXT)
+                except:
+                    pdf.cell(0, 5, "[Evidência não pôde ser carregada]", new_x=XPos.LMARGIN, new_y=YPos.NEXT)
         
-        pdf.ln(5) # Espaço entre um caso de teste e outro
+        pdf.ln(10) # Espaço generoso entre testes
             
     return bytes(pdf.output())
 
