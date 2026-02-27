@@ -257,6 +257,7 @@ if ciclo_ativo != "Nenhum":
     tabs = st.tabs(["Dashboard", "Critérios", "Execução", "Exportar", "Bugs"])
 
     with tabs[0]:
+        st.subheader(f"QA Governance - {ciclo_ativo}")
         if not df_t.empty:
             c1, c2 = st.columns(2)
             fig_pie = px.pie(df_t, names='Status', title="Status Geral", color='Status', color_discrete_map=CORES_GRAF, hole=0.5)
@@ -276,6 +277,7 @@ if ciclo_ativo != "Nenhum":
         c2.plotly_chart(fig_bugs_status, use_container_width=True)            
 
     with tabs[1]:
+        st.subheader(f"Critérios de Aceite - {ciclo_ativo}")
         if st.button("➕ Novo Critério"):
             nid = get_next_auto_id("CA", "criterios", "crit_id", exec_id)
             supabase.table("criterios").insert({"exec_id": exec_id, "crit_id": nid, "status": "Pendente"}).execute()
@@ -296,6 +298,7 @@ if ciclo_ativo != "Nenhum":
             st.success("Sincronizado!")
 
     with tabs[2]:
+        st.subheader(f"Casos de Teste - {ciclo_ativo}")
         if st.button("➕ Novo Caso de Teste"):
             nid = get_next_auto_id("CT", "casos_teste", "test_id", exec_id)
             supabase.table("casos_teste").insert({"exec_id": exec_id, "test_id": nid, "status": "Pendente"}).execute()
@@ -315,6 +318,7 @@ if ciclo_ativo != "Nenhum":
             st.success("Sincronizado!")
 
     with tabs[3]:
+        st.subheader(f"Evidências dos Casos e Relatório - {ciclo_ativo}")
         st.subheader("Anexos na Nuvem")
         target = st.selectbox("ID do Teste", df_t['ID'].tolist() if not df_t.empty else [])
         img = st.file_uploader("Upload de Evidência", type=['png','jpg','jpeg'])
