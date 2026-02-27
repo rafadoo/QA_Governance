@@ -318,7 +318,6 @@ if ciclo_ativo != "Nenhum":
             st.success("Sincronizado!")
 
     with tabs[3]:
-        st.subheader(f"Evidências dos Casos e Relatório - {ciclo_ativo}")
         st.subheader("Anexos na Nuvem")
         target = st.selectbox("ID do Teste", df_t['ID'].tolist() if not df_t.empty else [])
         img = st.file_uploader("Upload de Evidência", type=['png','jpg','jpeg'])
