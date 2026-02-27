@@ -251,7 +251,7 @@ if ciclo_ativo != "Nenhum":
     df_t = pd.DataFrame(tests_data) if tests_data else pd.DataFrame(columns=['ID','Funcionalidade','Titulo','Passos','Esperado','Status','Observacao'])
     if tests_data: df_t.columns = ['ID','Funcionalidade','Titulo','Passos','Esperado','Status','Observacao']
 
-    tabs = st.tabs(["Dashboard", "Critérios", "Execução", "Exportar"])
+    tabs = st.tabs(["Dashboard", "Critérios", "Execução", "Exportar", "Bugs"])
 
     with tabs[0]:
         if not df_t.empty:
@@ -310,6 +310,86 @@ if ciclo_ativo != "Nenhum":
             url = supabase.storage.from_("evidencias").get_public_url(file_path)
             supabase.table("evidencias").insert({"exec_id": exec_id, "test_id": target, "caminho": url, "data": datetime.now().strftime("%Y-%m-%d")}).execute()
             st.success("Evidência salva no Storage!")
+
+    with tabs[4]: # Aba de Bugs
+        st.subheader(f"Gestão de Bugs - {ciclo_ativo}")
+        
+        # Busca Bugs vinculados a esta execução
+        bugs_data = supabase.table("bugs").select("*").eq("exec_id", exec_id).execute().data
+        df_bugs = pd.DataFrame(bugs_data) if bugs_data else pd.DataFrame(columns=[
+            'id', 'titulo', 'descricao', 'aplicacao', 'ambiente', 'prioridade', 
+            'funcionalidade', 'status', 'id_externo', 'status_integracao'
+        ])  
+
+        # --- Formulário de Cadastro ---
+        with st.expander("➕ Reportar Novo Bug"):
+            with st.form("form_bug"):
+                col1, col2 = st.columns(2)
+                b_titulo = col1.text_input("Título do Bug")
+                b_func = col2.selectbox("Funcionalidade (Módulo)", df_t['Funcionalidade'].unique() if not df_t.empty else ["Geral"])
+                b_desc = st.text_area("Descrição Detalhada / Passos para Reproduzir")
+                
+                c3, c4, c5 = st.columns(3)
+                b_app = c3.text_input("Aplicação", placeholder="Ex: App Android, Site...")
+                b_amb = c4.selectbox("Ambiente", ["Desenvolvimento", "Homologação", "Produção"])
+                b_prio = c5.selectbox("Prioridade", PRIORIDADE_OPCOES)
+                
+                if st.form_submit_button("Registrar Bug", use_container_width=True):
+                    new_bug = {
+                        "exec_id": exec_id,
+                        "titulo": b_titulo,
+                        "funcionalidade": b_func,
+                        "descricao": b_desc,
+                        "aplicacao": b_app,
+                        "ambiente": b_amb,
+                        "prioridade": b_prio,
+                        "status": "Novo"
+                    }
+                    supabase.table("bugs").insert(new_bug).execute()
+                    st.success("Bug registrado com sucesso!")
+                    st.rerun()  
+
+        # --- Edição e Visualização ---
+        if not df_bugs.empty:
+            st.write("### Lista de Defeitos")
+            
+            # Configuração do Data Editor para lidar com a lógica de Integração
+            ed_bugs = st.data_editor(
+                df_bugs, 
+                key="editor_bugs",
+                use_container_width=True,
+                column_config={
+                    "id": None, # Oculta o ID interno
+                    "exec_id": None,
+                    "status": st.column_config.SelectboxColumn("Status", options=["Novo", "Em Correção", "Validado", "Cancelado"]),
+                    "prioridade": st.column_config.SelectboxColumn("Prioridade", options=PRIORIDADE_OPCOES),
+                    "status_integracao": st.column_config.TextColumn("Status Integração", disabled=True),
+                    "id_externo": st.column_config.TextColumn("ID Externo (Jira/Azure)")
+                },
+                hide_index=True
+            )   
+
+            if st.button("Salvar Alterações nos Bugs", use_container_width=True):
+                for _, row in ed_bugs.iterrows():
+                    # Lógica de Integração Automática solicitada
+                    status_int = "Integrado" if row['id_externo'] and str(row['id_externo']).strip() != "" else "Nao Integrado"
+                    
+                    upd_data = {
+                        "titulo": row['titulo'],
+                        "descricao": row['descricao'],
+                        "aplicacao": row['aplicacao'],
+                        "ambiente": row['ambiente'],
+                        "prioridade": row['prioridade'],
+                        "status": row['status'],
+                        "id_externo": row['id_externo'],
+                        "status_integracao": status_int
+                    }
+                    supabase.table("bugs").update(upd_data).eq("id", row['id']).execute()
+                
+                st.success("Bugs atualizados!")
+                st.rerun()
+        else:
+            st.info("Nenhum bug reportado para este ciclo.")
 
         if st.button("Gerar Relatório PDF", use_container_width=True):
             with tempfile.NamedTemporaryFile(delete=False, suffix=".png") as t1, tempfile.NamedTemporaryFile(delete=False, suffix=".png") as t2:
