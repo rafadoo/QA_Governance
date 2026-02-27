@@ -328,6 +328,18 @@ if ciclo_ativo != "Nenhum":
             supabase.table("evidencias").insert({"exec_id": exec_id, "test_id": target, "caminho": url, "data": datetime.now().strftime("%Y-%m-%d")}).execute()
             st.success("Evidência salva no Storage!")
 
+        if st.button("Gerar Relatório PDF", use_container_width=True):
+            with tempfile.NamedTemporaryFile(delete=False, suffix=".png") as t1, tempfile.NamedTemporaryFile(delete=False, suffix=".png") as t2:
+                for f in [fig_pie, fig_bar]: f.update_layout(paper_bgcolor='white', plot_bgcolor='white')
+                fig_pie.write_image(t1.name, engine="kaleido", scale=2)
+                fig_bar.write_image(t2.name, engine="kaleido", scale=2)
+                pdf_data = gerar_pdf_completo(ciclo_ativo, df_t, df_c, exec_id, t1.name, t2.name)
+                st.session_state['pdf_final'] = pdf_data
+                st.success("PDF gerado!")
+
+        if 'pdf_final' in st.session_state:
+            st.download_button("Baixar PDF", st.session_state['pdf_final'], f"QA_{ciclo_ativo}.pdf", use_container_width=True)
+
     with tabs[4]: # Aba de Bugs
         st.subheader(f"Gestão de Bugs - {ciclo_ativo}")
         
@@ -407,15 +419,3 @@ if ciclo_ativo != "Nenhum":
                 st.rerun()
         else:
             st.info("Nenhum bug reportado para este ciclo.")
-
-        if st.button("Gerar Relatório PDF", use_container_width=True):
-            with tempfile.NamedTemporaryFile(delete=False, suffix=".png") as t1, tempfile.NamedTemporaryFile(delete=False, suffix=".png") as t2:
-                for f in [fig_pie, fig_bar]: f.update_layout(paper_bgcolor='white', plot_bgcolor='white')
-                fig_pie.write_image(t1.name, engine="kaleido", scale=2)
-                fig_bar.write_image(t2.name, engine="kaleido", scale=2)
-                pdf_data = gerar_pdf_completo(ciclo_ativo, df_t, df_c, exec_id, t1.name, t2.name)
-                st.session_state['pdf_final'] = pdf_data
-                st.success("PDF gerado!")
-
-        if 'pdf_final' in st.session_state:
-            st.download_button("Baixar PDF", st.session_state['pdf_final'], f"QA_{ciclo_ativo}.pdf", use_container_width=True)
