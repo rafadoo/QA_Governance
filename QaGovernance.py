@@ -261,6 +261,17 @@ if ciclo_ativo != "Nenhum":
             fig_bar = px.bar(df_t, x='Funcionalidade', color='Status', title="Módulos", color_discrete_map=CORES_GRAF)
             c2.plotly_chart(fig_bar, use_container_width=True)
 
+    if not df_bugs.empty:
+        st.divider()
+        st.subheader("Indicadores de Defeitos")
+        c1, c2 = st.columns(2)
+        
+        fig_bugs_prio = px.pie(df_bugs, names='prioridade', title="Bugs por Prioridade", hole=0.4)
+        c1.plotly_chart(fig_bugs_prio, use_container_width=True)
+        
+        fig_bugs_status = px.bar(df_bugs, x='status', color='status_integracao', title="Status de Correção vs Integração")
+        c2.plotly_chart(fig_bugs_status, use_container_width=True)            
+
     with tabs[1]:
         if st.button("➕ Novo Critério"):
             nid = get_next_auto_id("CA", "criterios", "crit_id", exec_id)
