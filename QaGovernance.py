@@ -251,6 +251,9 @@ if ciclo_ativo != "Nenhum":
     df_t = pd.DataFrame(tests_data) if tests_data else pd.DataFrame(columns=['ID','Funcionalidade','Titulo','Passos','Esperado','Status','Observacao'])
     if tests_data: df_t.columns = ['ID','Funcionalidade','Titulo','Passos','Esperado','Status','Observacao']
 
+    bugs_data = supabase.table("bugs").select("*").eq("exec_id", exec_id).execute().data
+    df_bugs = pd.DataFrame(bugs_data) if bugs_data else pd.DataFrame(columns=['id', 'titulo', 'descricao', 'aplicacao', 'ambiente', 'prioridade', 'funcionalidade', 'status', 'id_externo', 'status_integracao'])
+
     tabs = st.tabs(["Dashboard", "Critérios", "Execução", "Exportar", "Bugs"])
 
     with tabs[0]:
